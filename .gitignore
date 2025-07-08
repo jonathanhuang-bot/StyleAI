@@ -1,0 +1,9 @@
+# virtual environments
+venv/
+venv_312/
+__pycache__/
+*.pyc
+data/*.jpg
+README.md
+CLAUDE.md
+resources/
