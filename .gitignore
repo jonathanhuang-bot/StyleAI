@@ -7,3 +7,8 @@ data/*.jpg
 README.md
 CLAUDE.md
 resources/
+backend/experimental/llama3_2_(11b)_vision.py
+
+# Environment variables
+.env
+backend/.env
