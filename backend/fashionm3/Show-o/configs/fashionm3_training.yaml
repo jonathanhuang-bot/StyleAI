@@ -5,20 +5,16 @@ wandb:
   entity: null
   resume: 'auto'
 
-experiment:
-  project: "fashionm3"
-  name: "fashionvlm-finetuning"
-  output_dir: "fashionm3-output"
-
 model:
   vq_model:
     type: "magvitv2"
+    pretrained_model_path: "/mnt/c/Users/jonat/desktop/styleai/backend/fashionm3/Show-o/models/magvitv2/pytorch_model.safetensors"
     vq_model_name: "showlab/magvitv2"
   
   showo:
     load_from_showo: True
-    pretrained_model_path: "showlab/show-o-512x512-wo-llava-tuning"
-    w_clip_vit: False
+    pretrained_model_path: "/mnt/c/Users/jonat/desktop/styleai/backend/fashionm3/Show-o/models/show-o-512x512-wo-llava-tuning"
+    w_clip_vit: True
     vocab_size: 58498
     llm_vocab_size: 50295
     llm_model_path: 'microsoft/phi-1_5'
@@ -29,24 +25,27 @@ model:
   gradient_checkpointing: True
 
 dataset:
-  type: "fashionrec"
-  data_root: "/mnt/c/Users/jonat/desktop/styleai/backend/data"
-  und_type: "captioning"
-  tasks:
-    basic_recommendation:
-      weight: 0.26
-      data_path: "basic_recommendation"
-    personalized_recommendation:
-      weight: 0.63
-      data_path: "personalized_recommendation"
-    alternative_recommendation:
-      weight: 0.11
-      data_path: "alternative_recommendation"
+  gen_type: "fashion_image_generation"  # Using fashion image generation for t2i_flow
+  und_type: "fashionrec"  # Our FashionRec dataset for mmu_flow
+  combined_loader_mode: "max_size_cycle"
+  add_system_prompt: False
   params:
-    batch_size: 4
+    # T2I generation dataset path (using fashion image generation data)
+    train_t2i_shards_path_or_url: "/mnt/c/Users/jonat/desktop/styleai/backend/data/fashion_image_generation"
+    # FashionRec dataset path for MMU
+    fashionrec_data_root: "/mnt/c/Users/jonat/desktop/styleai/backend/data"
+    # LM dataset path (placeholder - not used in fashion-focused training)
+    train_lm_shards_path_or_url: "/path/to/refinedweb"
+    # Fashion-specific validation prompts for T2I generation
+    validation_prompts_file: "/mnt/c/Users/jonat/desktop/styleai/backend/fashionm3/Show-o/validation_prompts/fashion_prompts.txt"
+    # Task weights for FashionRec
+    task_weights:
+      basic_recommendation: 0.26
+      personalized_recommendation: 0.63
+      alternative_recommendation: 0.11
+    # Common parameters
+    num_workers: 4
     shuffle_buffer_size: 1000
-    num_workers: 8
-    resolution: 512
     pin_memory: True
     persistent_workers: True
   preprocessing:
@@ -56,24 +55,62 @@ dataset:
     random_flip: False
 
 training:
-  enable_multimodal_recommendation: True
-  enable_text_to_image: True
-  multimodal_recommendation_samples: 40000
-  text_to_image_samples: 200000
+  # Batch sizes for each flow
+  batch_size_t2i: 2
+  batch_size_mmu: 4  # FashionRec batch size
+  batch_size_lm: 2
+  
+  # Training coefficients for each loss
+  t2i_coeff: 1.0
+  mmu_coeff: 2.0  # Higher weight for fashion recommendations
+  lm_coeff: 1.0
+  
+  # Training parameters
   gradient_accumulation_steps: 1
   cond_dropout_prob: 0.1
-  batch_size: 4
-  learning_rate: 1e-4
-  weight_decay: 0.01
-  warmup_steps: 1000
   max_train_steps: 50000
   mixed_precision: "fp16"
   enable_tf32: True
-  save_steps: 1000
-  eval_steps: 500
-  logging_steps: 100
-  mask_ratio_min: 0.5
-  mask_ratio_max: 1.0
+  
+  # Optimization
+  label_smoothing: 0.0
+  max_grad_norm: 1.0
+  
+  # Masking parameters
+  min_masking_rate: 0.0
+  mask_schedule: "cosine"
+  
+  # Generation parameters
+  guidance_scale: 3.0
+  generation_timesteps: 18
+
+optimizer:
+  name: "adamw"
+  params:
+    learning_rate: 1e-4
+    weight_decay: 0.01
+    beta1: 0.9
+    beta2: 0.999
+    epsilon: 1e-8
+
+lr_scheduler:
+  scheduler: "constant_with_warmup"
+  params:
+    warmup_steps: 1000
+
+experiment:
+  project: "fashionm3"
+  name: "fashionvlm-finetuning"
+  output_dir: "fashionm3-output"
+  resume_from_checkpoint: False
+  max_train_examples_t2i: 500000
+  max_train_examples_mmu: 500000
+  log_every: 100
+  save_every: 1000
+  generate_every: 2000
+  eval_every: 2000  # Evaluate on test data every 2000 steps
+  log_grad_norm_every: 1000
+  checkpoints_total_limit: 5
 
 evaluation:
   metrics:

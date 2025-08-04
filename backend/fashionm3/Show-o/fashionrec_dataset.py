@@ -41,10 +41,10 @@ class FashionRecDataset(Dataset):
                 if image_file:
                     image = Image.open(io.BytesIO(image_file.read()))
                 else:
-                    print(f"⚠️ Image file {image_name} not found in tar")
+                    print(f"Image file {image_name} not found in tar")
                     image = None
             except KeyError:
-                print(f"⚠️ Missing corresponding image: {image_name}")
+                print(f"Missing corresponding image: {image_name}")
                 image = None
             conversation_text = ""
             conversation = data["conversation"]
